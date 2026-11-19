@@ -161,8 +161,14 @@ def run_continuous_autopilot(num_shorts: int = 5, privacy: str = "public", delay
             print("\n\n🛑 [Stopped by User] Autopilot safely paused. All local files cleaned.")
             break
         except Exception as e:
-            print(f"\n[Warning] Cycle encountered an issue: {e}")
-            print(f"Retrying next topic in {delay_seconds} seconds...")
+            err_msg = str(e)
+            print(f"\n[Warning] Cycle encountered an issue: {err_msg}")
+            if "upload quota exceeded" in err_msg.lower() or "uploadlimitexceeded" in err_msg.lower():
+                print("\n💤 YouTube daily upload limit reached (10,000 units/day).")
+                print("Sleeping for 1 hour before checking if quota has reset. (Press Ctrl+C to stop)...")
+                time.sleep(3600)
+            else:
+                print(f"Retrying next topic in {delay_seconds} seconds...")
             time.sleep(delay_seconds)
 
 

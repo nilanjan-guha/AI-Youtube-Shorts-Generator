@@ -286,11 +286,21 @@ def generate_dynamic_metadata(content_text: str, original_title: str, is_short: 
                 f'  "debate_question": "Controversial question prompting viewers to comment Yes or No"\n'
                 f"}}"
             )
-            resp = client.models.generate_content(
-                model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
-                contents=prompt,
-                config={"response_mime_type": "application/json"}
-            )
+            models_to_try = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-lite-latest", os.getenv("GEMINI_MODEL", "gemini-3.5-flash")]
+            resp = None
+            for m in list(dict.fromkeys(models_to_try)):
+                try:
+                    resp = client.models.generate_content(
+                        model=m,
+                        contents=prompt,
+                        config={"response_mime_type": "application/json"}
+                    )
+                    if resp and resp.text:
+                        break
+                except Exception:
+                    continue
+            if not resp or not resp.text:
+                raise RuntimeError("All flash-lite models busy")
             data = json_lib.loads(resp.text)
             
             title = data.get("title", original_title)
@@ -512,9 +522,10 @@ def run_pipeline(
             except Exception as e:
                 err_str = str(e)
                 print(f" -> Upload failed: {err_str}")
-                # If YouTube 10,000 daily API quota or upload limit reached, pause gracefully
+                # If YouTube 10,000 daily API quota or upload limit reached, stop further attempts in this cycle
                 if "quotaExceeded" in err_str or "rateLimitExceeded" in err_str or "uploadLimitExceeded" in err_str:
-                    print("\n[Quota Alert] YouTube daily upload quota reached. Further uploads will pause until daily quota reset.")
+                    print("\n[Quota Alert] YouTube daily upload quota reached. Further uploads paused until daily quota reset.")
+                    raise RuntimeError("YouTube upload quota exceeded for today.")
 
     # 4. Cleanup all files from disk (videos, clips, and generated thumbnails)
     cleanup_storage([source_video_path], shorts, thumbnails=created_thumbnails)
