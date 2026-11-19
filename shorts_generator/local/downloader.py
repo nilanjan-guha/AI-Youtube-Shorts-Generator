@@ -24,14 +24,12 @@ def _import_ytdlp():
 
 
 def _format_for(fmt: str) -> str:
-    """Map our '720' / '1080' shorthand to a yt-dlp format selector."""
-    try:
-        height = int(fmt)
-    except ValueError:
-        height = 720
+    """Format selector that gets maximum quality with robust fallback to prevent 503 / format errors."""
     return (
-        f"bestvideo[height<={height}][ext=mp4]+bestaudio[ext=m4a]/"
-        f"best[height<={height}][ext=mp4]/best"
+        "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
+        "bestvideo+bestaudio/"
+        "bestvideo*+bestaudio/best/"
+        "best"
     )
 
 
@@ -110,6 +108,10 @@ def download_youtube_local(video_url: str, fmt: str = "720", out_dir: Optional[s
             print(f"[download/local] reusing cached download: {cached}", flush=True)
             return cached
 
+    scripts_dir = str(Path(__file__).resolve().parent.parent.parent / "venv" / "Scripts")
+    if os.path.exists(scripts_dir) and scripts_dir not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = scripts_dir + os.pathsep + os.environ.get("PATH", "")
+
     print(f"[download/local] {video_url} @ {fmt}p → {out_dir}/", flush=True)
     ydl_opts = {
         "format": _format_for(fmt),
@@ -118,6 +120,12 @@ def download_youtube_local(video_url: str, fmt: str = "720", out_dir: Optional[s
         "quiet": True,
         "no_warnings": True,
         "noprogress": True,
+        "ffmpeg_location": scripts_dir if os.path.exists(scripts_dir) else None,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["ios", "android", "mweb", "web"],
+            }
+        },
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

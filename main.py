@@ -20,19 +20,42 @@ from shorts_generator import generate_shorts
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="AI YouTube Shorts Generator")
-    parser.add_argument("url", help="YouTube URL, file:// URL, or local file path")
+    parser.add_argument("url", nargs="?", default=None, help="YouTube URL, file:// URL, or local file path (optional: if omitted, picks a viral video automatically)")
     parser.add_argument(
         "--mode",
         choices=["api", "local"],
-        default="api",
-        help="api (default, MuAPI) or local (remote URL, file://, or local path + faster-whisper + LLM provider + ffmpeg).",
+        default="local",
+        help="local (default, Whisper + Gemini + OpenCV) or api (MuAPI).",
     )
-    parser.add_argument("--num-clips", type=int, default=3, help="How many shorts to render (default: 3)")
+    parser.add_argument("--num-clips", type=int, default=5, help="How many shorts to render (default: 5)")
     parser.add_argument("--aspect-ratio", default="9:16", help="Output aspect ratio (default: 9:16)")
-    parser.add_argument("--format", default="720", help="Source download resolution: 360 / 480 / 720 / 1080 (default: 720)")
+    parser.add_argument("--format", default="1080", help="Source download resolution (default: 1080)")
     parser.add_argument("--language", default=None, help="Force Whisper language code, e.g. 'en' (default: auto-detect)")
+    parser.add_argument("--privacy", choices=["public", "unlisted", "private"], default="public", help="Upload visibility (default: public)")
     parser.add_argument("--output-json", default=None, help="Write the full result JSON to this path")
     args = parser.parse_args()
+
+    # If no URL is provided, run the autonomous pipeline on a viral topic automatically!
+    if not args.url:
+        from daily_runner import pick_viral_topic
+        from auto_pilot import run_pipeline
+        topic = pick_viral_topic()
+        print("\n" + "=" * 70)
+        print("      BYTEWAVE AI: AUTONOMOUS VIRAL SHORTS GENERATOR")
+        print("=" * 70)
+        print(f"🎯 Auto-Selected Viral Topic: '{topic}'")
+        print(f"🎬 Generating: {args.num_clips} Shorts (Vertical 9:16)")
+        print(f"🔒 Privacy: {args.privacy}")
+        print("=" * 70 + "\n")
+        run_pipeline(
+            search_topic=topic,
+            num_clips=args.num_clips,
+            mode=args.mode,
+            privacy_status=args.privacy,
+            min_duration=300,
+            max_duration=1800,
+        )
+        return 0
 
     try:
         result = generate_shorts(

@@ -137,6 +137,7 @@ def transcribe_local(media_path: str, language: Optional[str] = None) -> Dict:
         "language": language,
         "beam_size": 5,
         "condition_on_previous_text": False,
+        "word_timestamps": True,  # Enable word-level timestamps for animated subtitles
     }
     if LOCAL_WHISPER_VAD_FILTER:
         transcribe_kwargs["vad_filter"] = True
@@ -148,10 +149,20 @@ def transcribe_local(media_path: str, language: Optional[str] = None) -> Dict:
 
     segments = []
     for s in segments_iter:
+        # Extract word-level timestamps for animated subtitle burning
+        words = []
+        if hasattr(s, "words") and s.words:
+            for w in s.words:
+                words.append({
+                    "start": float(w.start),
+                    "end": float(w.end),
+                    "word": (w.word or "").strip(),
+                })
         segments.append({
             "start": float(s.start),
             "end": float(s.end),
             "text": (s.text or "").strip(),
+            "words": words,
         })
 
     duration = float(getattr(info, "duration", 0.0)) or (segments[-1]["end"] if segments else 0.0)
