@@ -13,6 +13,11 @@ Features:
 
 import os
 import sys
+import os
+
+# Allow imports from project root
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import threading
 from datetime import datetime
 import tkinter as tk
@@ -25,7 +30,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from youtube_uploader import get_authenticated_service
+from pipeline import get_authenticated_service
 
 TARGET_SUBS = 1000
 TARGET_VIEWS = 10_000_000  # 10M for Shorts Monetization

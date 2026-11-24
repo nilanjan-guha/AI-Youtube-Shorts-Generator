@@ -38,7 +38,7 @@ def main() -> int:
     # If no URL is provided, run the autonomous pipeline on a viral topic automatically!
     if not args.url:
         from daily_runner import pick_viral_topic
-        from auto_pilot import run_pipeline
+        from pipeline import run_pipeline
         topic = pick_viral_topic()
         print("\n" + "=" * 70)
         print("      BYTEWAVE AI: AUTONOMOUS VIRAL SHORTS GENERATOR")

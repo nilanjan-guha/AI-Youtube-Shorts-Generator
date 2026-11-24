@@ -20,8 +20,8 @@ SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.force-ssl",  # Needed for comments & thumbnails
 ]
-CLIENT_SECRETS_FILE = "client_secret.json"
-TOKEN_FILE = "token.json"
+CLIENT_SECRETS_FILE = os.path.join("config", "client_secret.json") if os.path.exists(os.path.join("config", "client_secret.json")) else "client_secret.json"
+TOKEN_FILE = os.path.join("config", "token.json") if os.path.exists(os.path.join("config", "token.json")) else "token.json"
 
 
 def get_authenticated_service():

@@ -11,6 +11,9 @@ import sys
 import json
 from datetime import datetime
 
+# Allow imports from project root
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 # Configure UTF-8 for Windows terminals
 if sys.platform == "win32":
     try:
@@ -18,7 +21,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from youtube_uploader import get_authenticated_service
+from pipeline import get_authenticated_service
 
 TARGET_SUBS = 1000
 TARGET_VIEWS = 10_000_000  # 10 Million views for Shorts YPP

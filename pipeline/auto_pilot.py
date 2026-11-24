@@ -21,10 +21,10 @@ if hasattr(sys.stderr, "reconfigure"):
 
 import yt_dlp
 from shorts_generator import generate_shorts
-from youtube_uploader import get_authenticated_service, upload_video, set_thumbnail, post_pinned_comment, generate_engagement_comment
+from .youtube_uploader import get_authenticated_service, upload_video, set_thumbnail, post_pinned_comment, generate_engagement_comment
 
 
-HISTORY_FILE = "history.json"
+HISTORY_FILE = os.path.join("data", "history.json") if os.path.exists("data") else "history.json"
 
 
 def get_used_video_ids() -> set:
@@ -203,7 +203,7 @@ def cleanup_storage(source_paths: List[str], clips: List[Dict], thumbnails: Opti
 
     # Also clean any leftover temporary subclips/artifacts in output folder
     if os.path.exists(output_dir):
-        for pattern in ["subclip_*.mp4", "source_*.*", "clip_*.mp4"]:
+        for pattern in ["subclip_*.mp4", "source_*.*", "clip_*.mp4", "short_*.mp4", "thumb_short_*.jpg"]:
             for f in glob.glob(os.path.join(output_dir, pattern)):
                 try:
                     os.remove(f)
@@ -211,6 +211,111 @@ def cleanup_storage(source_paths: List[str], clips: List[Dict], thumbnails: Opti
                 except Exception:
                     pass
     print("[Cleanup] Done. All video storage reclaimed.")
+
+
+def upload_and_clean_leftover_shorts(output_dir: str = "output", privacy_status: str = "public"):
+    """Check if any pre-existing short_*.mp4 files are inside output_dir before starting a new run.
+    If found:
+      1. Authenticate with YouTube
+      2. Upload each leftover Short
+      3. Set custom thumbnail and post pinned comment if present
+      4. Delete the uploaded shorts and thumbnails immediately from disk
+    """
+    if not os.path.exists(output_dir):
+        return
+
+    leftover_shorts = sorted(glob.glob(os.path.join(output_dir, "short_*.mp4")))
+    # Exclude any intermediate ffmpeg temporary files
+    leftover_shorts = [f for f in leftover_shorts if not f.endswith(".silent.mp4") and not f.endswith(".cut.mp4")]
+
+    if not leftover_shorts:
+        return
+
+    print("\n" + "=" * 70)
+    print(f"📦 [Leftover Shorts Detected] Found {len(leftover_shorts)} existing short(s) in '{output_dir}/'")
+    print("Uploading leftover shorts to YouTube first before generating new ones...")
+    print("=" * 70)
+
+    youtube = get_authenticated_service()
+    if not youtube:
+        print("[Warning] YouTube service authentication not available. Removing leftover files...")
+        for s in leftover_shorts:
+            try:
+                os.remove(s)
+                print(f" -> Removed: {s}")
+            except Exception:
+                pass
+        return
+
+    for idx, clip_path in enumerate(leftover_shorts, 1):
+        if not os.path.exists(clip_path) or os.path.getsize(clip_path) == 0:
+            try:
+                if os.path.exists(clip_path):
+                    os.remove(clip_path)
+            except Exception:
+                pass
+            continue
+
+        filename = os.path.basename(clip_path)
+        # Attempt to find corresponding thumbnail or matching number
+        num_str = "".join([c for c in filename if c.isdigit()]) or f"{idx:02d}"
+        thumb_candidate = os.path.join(output_dir, f"thumb_short_{num_str}.jpg")
+
+        meta = generate_dynamic_metadata(
+            content_text=f"Viral ByteWave Short {filename}",
+            original_title="Mind-Blowing Discovery 🤯",
+            is_short=True,
+        )
+
+        print(f"\n[Upload Leftover] Uploading {filename} (#{idx}/{len(leftover_shorts)}) to YouTube: '{meta['title']}'...")
+        try:
+            video_id = upload_video(
+                youtube,
+                file_path=clip_path,
+                title=meta["title"],
+                description=meta["description"],
+                tags=meta["tags"],
+                privacy_status=privacy_status,
+            )
+            print(f" -> Upload complete! Video URL: https://youtube.com/shorts/{video_id}")
+
+            if os.path.exists(thumb_candidate):
+                set_thumbnail(youtube, video_id, thumb_candidate)
+                try:
+                    os.remove(thumb_candidate)
+                    print(f" -> Cleaned thumbnail: {thumb_candidate}")
+                except Exception:
+                    pass
+
+            comment_text = generate_engagement_comment(meta["title"], is_short=True)
+            post_pinned_comment(youtube, video_id, comment_text, is_short=True)
+
+            # Delete the short immediately after successful upload
+            os.remove(clip_path)
+            print(f" -> Cleaned uploaded short: {clip_path}")
+        except Exception as e:
+            err_str = str(e)
+            print(f" -> Leftover upload error: {err_str}")
+            if "quotaExceeded" in err_str or "rateLimitExceeded" in err_str or "uploadLimitExceeded" in err_str:
+                print("\n[Quota Alert] Daily YouTube upload quota reached during leftover upload.")
+                raise RuntimeError("YouTube upload quota exceeded for today.")
+            # If corrupted or failed non-quota, remove to unblock pipeline
+            try:
+                os.remove(clip_path)
+                print(f" -> Removed un-uploadable clip: {clip_path}")
+            except Exception:
+                pass
+
+    # Clean any remaining leftover junk artifacts before starting fresh
+    for pattern in ["subclip_*.mp4", "source_*.*", "clip_*.mp4", "short_*.mp4", "thumb_short_*.jpg"]:
+        for f in glob.glob(os.path.join(output_dir, pattern)):
+            try:
+                os.remove(f)
+                print(f" -> Purged stale artifact: {f}")
+            except Exception:
+                pass
+
+    print("[Leftover Cleanup] All existing shorts uploaded and cleared. Ready for fresh generation!\n")
 
 
 def fetch_trending_search_queries(seed_text: str, max_results: int = 8) -> List[str]:
@@ -435,6 +540,9 @@ def run_pipeline(
     print("=" * 70)
     print("      AUTONOMOUS YOUTUBE SHORTS GENERATOR & UPLOADER")
     print("=" * 70)
+
+    # 0. Check and upload any pre-existing leftover shorts first, then delete them
+    upload_and_clean_leftover_shorts(output_dir="output", privacy_status=privacy_status)
 
     # 1. Search for video (10-15 mins)
     videos = search_youtube_videos(search_topic, max_results=1, min_duration=min_duration, max_duration=max_duration)

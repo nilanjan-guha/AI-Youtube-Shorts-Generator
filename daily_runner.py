@@ -7,12 +7,12 @@ import json
 import random
 import time
 import argparse
-from auto_pilot import run_pipeline
+from pipeline import run_pipeline, pick_channel_informed_topic
 from dotenv import load_dotenv
 
 load_dotenv()
 
-TOPICS_FILE = "viral_topics.json"
+TOPICS_FILE = os.path.join("data", "viral_topics.json") if os.path.exists("data") else "viral_topics.json"
 
 
 def load_all_topics() -> list:
@@ -66,17 +66,27 @@ def pick_viral_topic() -> str:
     """Dynamically picks or discovers viral search keywords for YouTube.
     
     Combines:
-    1. Real-time Live YouTube Search Trend Scanners (from dynamic seeds)
-    2. Dynamic AI Generation with Gemini (creative viral angles)
-    3. Direct random selection from viral_topics.json (320+ pure keywords)
+    1. Channel Intelligence Scanner (learns from your most viewed & liked videos)
+    2. Real-time Live YouTube Search Trend Scanners (from dynamic seeds)
+    3. Dynamic AI Generation with Gemini (creative viral angles)
+    4. Direct selection from viral_topics.json (320+ pure keywords)
     """
-    # 1. 40% chance: Discover live trending YouTube search queries happening right now
+    # 1. 40% chance: Model after your channel's top performing videos (most views & likes)
     if random.random() < 0.40:
+        try:
+            channel_topic = pick_channel_informed_topic()
+            if channel_topic:
+                return channel_topic
+        except Exception as e:
+            print(f" -> [Channel Scanner Note]: {e}")
+
+    # 2. 30% chance: Discover live trending YouTube search queries happening right now
+    if random.random() < 0.50:
         live_query = fetch_live_trending_topic()
         if live_query:
             return live_query
 
-    # 2. 30% chance: Dynamically generate fresh search keyword with Gemini AI
+    # 3. Dynamic AI Generation with Gemini (creative viral angles)
     api_key = os.getenv("GEMINI_API_KEY")
     if api_key and random.random() < 0.50:
         try:
@@ -115,30 +125,39 @@ def pick_viral_topic() -> str:
     return random.choice(keywords)
 
 
-def run_continuous_autopilot(num_shorts: int = 5, privacy: str = "public", delay_seconds: int = 30):
-    """Runs continuously:
-    1. Downloads high-res 720p+ video (5-30 min)
-    2. Extracts 5 viral 9:16 Shorts with proper text visibility & face tracking
-    3. Uploads 1 full video + 5 shorts to YouTube with dynamic tags
-    4. Wipes 100% of video files from disk
-    5. Waits 30 seconds
-    6. Starts next video automatically until stopped by user (Ctrl+C).
+def run_daily_autopilot(
+    max_cycles: int = 1,
+    num_shorts: int = 4,
+    privacy: str = "public",
+    delay_seconds: int = 30,
+):
+    """Runs the daily viral video automation with safety limits:
+    1. Downloads high-res 720p+ candidate video based on channel success intelligence
+    2. Extracts high-hook 9:16 vertical Shorts with animated subtitles
+    3. Uploads to YouTube with dynamic tags and pinned engagement questions
+    4. Automatically cleans 100% of temporary files from local disk
+    5. After completing the designated daily limit (default: 1 cycle / batch of shorts),
+       safely stops automatically so your channel isn't throttled.
     """
     cycle = 1
-    num_shorts = max(5, num_shorts)
+    num_shorts = max(1, num_shorts)
     
     print("\n" + "=" * 70)
-    print("      BYTEWAVE AI: CONTINUOUS AUTOPILOT ACTIVATED")
-    print("  Runs indefinitely until stopped (Press Ctrl+C anytime to stop)")
-    print(f"  Per Cycle: 1 Full Video + {num_shorts} Shorts (at 720p HD)")
-    print(f"  Cooldown between videos: {delay_seconds} seconds")
+    print("      BYTEWAVE AI: DAILY AUTOMATION RUNNER")
+    if max_cycles > 0:
+        print(f"  Target Run Limit: {max_cycles} cycle(s) (1 cycle = ~{num_shorts} Shorts)")
+        print("  Bot will stop automatically once the target limit is reached.")
+    else:
+        print("  Mode: Continuous Loop (Ctrl+C to stop)")
+    print(f"  Shorts Per Cycle: {num_shorts} Shorts (720p HD)")
+    print(f"  Privacy: {privacy}")
     print("=" * 70)
 
     while True:
         try:
             query = pick_viral_topic()
-            print(f"\n🚀 [Cycle #{cycle}] Starting Next Job with Topic: '{query}'")
-            print(f"🎯 Target: 1 Full Video + {num_shorts} Shorts (720p HD)")
+            print(f"\n🚀 [Daily Cycle #{cycle}{f' of {max_cycles}' if max_cycles > 0 else ''}] Starting Topic: '{query}'")
+            print(f"🎯 Target: {num_shorts} Shorts (720p HD)")
             
             run_pipeline(
                 search_topic=query,
@@ -149,8 +168,17 @@ def run_continuous_autopilot(num_shorts: int = 5, privacy: str = "public", delay
                 max_duration=1800,  # 30 minutes
             )
 
-            print(f"\n✅ [Cycle #{cycle} Complete] 1 Full Video + {num_shorts} Shorts uploaded & local disk 100% cleaned!")
-            print(f"⏳ Waiting {delay_seconds} seconds before starting the next video...")
+            print(f"\n✅ [Cycle #{cycle} Complete] Uploaded successfully & local storage 100% cleaned!")
+
+            # Check if daily limit reached
+            if max_cycles > 0 and cycle >= max_cycles:
+                print("\n" + "=" * 70)
+                print(f"🎉 [DAILY GOAL COMPLETED] Finished {cycle} cycle(s) with {num_shorts} shorts!")
+                print("🛑 Daily limit reached. Stopping automatically to protect algorithm health.")
+                print("=" * 70 + "\n")
+                break
+
+            print(f"⏳ Cooldown: Waiting {delay_seconds} seconds before starting the next video...")
             for remaining in range(delay_seconds, 0, -5):
                 print(f" -> Next video starts in {remaining}s... (Press Ctrl+C to stop)")
                 time.sleep(min(5, remaining))
@@ -165,19 +193,44 @@ def run_continuous_autopilot(num_shorts: int = 5, privacy: str = "public", delay
             print(f"\n[Warning] Cycle encountered an issue: {err_msg}")
             if "upload quota exceeded" in err_msg.lower() or "uploadlimitexceeded" in err_msg.lower():
                 print("\n💤 YouTube daily upload limit reached (10,000 units/day).")
-                print("Sleeping for 1 hour before checking if quota has reset. (Press Ctrl+C to stop)...")
-                time.sleep(3600)
+                print("Stopping bot for today so quota can reset.")
+                break
             else:
                 print(f"Retrying next topic in {delay_seconds} seconds...")
-            time.sleep(delay_seconds)
+                time.sleep(delay_seconds)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Dynamic Continuous YouTube Shorts Automation")
-    parser.add_argument("--count", type=int, default=5, help="Number of shorts to make per video (default: 5)")
-    parser.add_argument("--privacy", choices=["public", "unlisted", "private"], default="public", help="Upload privacy")
-    parser.add_argument("--cooldown", type=int, default=30, help="Cooldown seconds between videos (default: 30)")
+    parser = argparse.ArgumentParser(description="Run Smart YouTube Shorts Daily Automation")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=1,
+        help="How many video cycles to run before stopping automatically (default: 1 cycle = 4 shorts; set 0 for infinite loop)",
+    )
+    parser.add_argument(
+        "--count",
+        type=int,
+        default=4,
+        help="Number of shorts to make per cycle (default: 4 shorts)",
+    )
+    parser.add_argument(
+        "--privacy",
+        choices=["public", "unlisted", "private"],
+        default="public",
+        help="Upload privacy (default: public)",
+    )
+    parser.add_argument(
+        "--cooldown",
+        type=int,
+        default=30,
+        help="Cooldown seconds between cycles (default: 30)",
+    )
     args = parser.parse_args()
 
-    count = max(5, args.count)
-    run_continuous_autopilot(num_shorts=count, privacy=args.privacy, delay_seconds=args.cooldown)
+    run_daily_autopilot(
+        max_cycles=args.limit,
+        num_shorts=args.count,
+        privacy=args.privacy,
+        delay_seconds=args.cooldown,
+    )
