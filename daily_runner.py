@@ -125,38 +125,38 @@ def pick_viral_topic() -> str:
     return random.choice(keywords)
 
 
-def run_daily_autopilot(
-    max_cycles: int = 1,
-    num_shorts: int = 4,
+def run_continuous_autopilot(
+    num_shorts: int = 5,
     privacy: str = "public",
     delay_seconds: int = 30,
+    max_cycles: int = 0,
 ):
-    """Runs the daily viral video automation with safety limits:
-    1. Downloads high-res 720p+ candidate video based on channel success intelligence
-    2. Extracts high-hook 9:16 vertical Shorts with animated subtitles
-    3. Uploads to YouTube with dynamic tags and pinned engagement questions
-    4. Automatically cleans 100% of temporary files from local disk
-    5. After completing the designated daily limit (default: 1 cycle / batch of shorts),
-       safely stops automatically so your channel isn't throttled.
+    """Runs continuous autopilot indefinitely:
+    1. Picks viral topic guided by channel success intelligence & live search trends
+    2. Downloads 720p HD video (5-30 mins)
+    3. Generates 5 high-hook vertical 9:16 Shorts with animated subtitles & thumbnails
+    4. Uploads all 5 Shorts to YouTube with dynamic tags & pinned engagement comments
+    5. Cleans 100% of temporary disk storage
+    6. Waits cooldown and immediately begins the next cycle continuously until stopped (Ctrl+C).
     """
     cycle = 1
     num_shorts = max(1, num_shorts)
     
     print("\n" + "=" * 70)
-    print("      BYTEWAVE AI: DAILY AUTOMATION RUNNER")
+    print("      BYTEWAVE AI: CONTINUOUS 24/7 AUTOPILOT ACTIVATED")
     if max_cycles > 0:
-        print(f"  Target Run Limit: {max_cycles} cycle(s) (1 cycle = ~{num_shorts} Shorts)")
-        print("  Bot will stop automatically once the target limit is reached.")
+        print(f"  Target Run Limit: {max_cycles} cycle(s) ({max_cycles * num_shorts} Shorts total)")
     else:
-        print("  Mode: Continuous Loop (Ctrl+C to stop)")
-    print(f"  Shorts Per Cycle: {num_shorts} Shorts (720p HD)")
+        print("  Runs indefinitely until stopped (Press Ctrl+C anytime to stop)")
+    print(f"  Per Cycle: 1 Downloaded Video → {num_shorts} Shorts (at 720p HD)")
+    print(f"  Cooldown between cycles: {delay_seconds} seconds")
     print(f"  Privacy: {privacy}")
     print("=" * 70)
 
     while True:
         try:
             query = pick_viral_topic()
-            print(f"\n🚀 [Daily Cycle #{cycle}{f' of {max_cycles}' if max_cycles > 0 else ''}] Starting Topic: '{query}'")
+            print(f"\n🚀 [Cycle #{cycle}{f' of {max_cycles}' if max_cycles > 0 else ''}] Starting Topic: '{query}'")
             print(f"🎯 Target: {num_shorts} Shorts (720p HD)")
             
             run_pipeline(
@@ -168,19 +168,17 @@ def run_daily_autopilot(
                 max_duration=1800,  # 30 minutes
             )
 
-            print(f"\n✅ [Cycle #{cycle} Complete] Uploaded successfully & local storage 100% cleaned!")
+            print(f"\n✅ [Cycle #{cycle} Complete] 1 Video processed → {num_shorts} Shorts generated & uploaded! Local storage 100% cleaned.")
 
-            # Check if daily limit reached
             if max_cycles > 0 and cycle >= max_cycles:
                 print("\n" + "=" * 70)
-                print(f"🎉 [DAILY GOAL COMPLETED] Finished {cycle} cycle(s) with {num_shorts} shorts!")
-                print("🛑 Daily limit reached. Stopping automatically to protect algorithm health.")
+                print(f"🎉 Completed all {cycle} cycle(s) ({cycle * num_shorts} Shorts total)!")
                 print("=" * 70 + "\n")
                 break
 
             print(f"⏳ Cooldown: Waiting {delay_seconds} seconds before starting the next video...")
             for remaining in range(delay_seconds, 0, -5):
-                print(f" -> Next video starts in {remaining}s... (Press Ctrl+C to stop)")
+                print(f" -> Next cycle starts in {remaining}s... (Press Ctrl+C to stop)")
                 time.sleep(min(5, remaining))
 
             cycle += 1
@@ -193,26 +191,20 @@ def run_daily_autopilot(
             print(f"\n[Warning] Cycle encountered an issue: {err_msg}")
             if "upload quota exceeded" in err_msg.lower() or "uploadlimitexceeded" in err_msg.lower():
                 print("\n💤 YouTube daily upload limit reached (10,000 units/day).")
-                print("Stopping bot for today so quota can reset.")
-                break
+                print("Sleeping for 1 hour before checking if quota has reset. (Press Ctrl+C to stop)...")
+                time.sleep(3600)
             else:
                 print(f"Retrying next topic in {delay_seconds} seconds...")
                 time.sleep(delay_seconds)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Smart YouTube Shorts Daily Automation")
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=1,
-        help="How many video cycles to run before stopping automatically (default: 1 cycle = 4 shorts; set 0 for infinite loop)",
-    )
+    parser = argparse.ArgumentParser(description="Run Dynamic Continuous YouTube Shorts Automation")
     parser.add_argument(
         "--count",
         type=int,
-        default=4,
-        help="Number of shorts to make per cycle (default: 4 shorts)",
+        default=5,
+        help="Number of shorts to make per video (default: 5)",
     )
     parser.add_argument(
         "--privacy",
@@ -226,11 +218,17 @@ if __name__ == "__main__":
         default=30,
         help="Cooldown seconds between cycles (default: 30)",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Optional: stop after N cycles (default: 0 = continuous non-stop loop)",
+    )
     args = parser.parse_args()
 
-    run_daily_autopilot(
-        max_cycles=args.limit,
+    run_continuous_autopilot(
         num_shorts=args.count,
         privacy=args.privacy,
         delay_seconds=args.cooldown,
+        max_cycles=args.limit,
     )
