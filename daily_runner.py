@@ -8,6 +8,7 @@ import random
 import time
 import argparse
 from pipeline import run_pipeline, pick_channel_informed_topic
+from pipeline.news_scanner import discover_news_informed_query
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -66,13 +67,23 @@ def pick_viral_topic() -> str:
     """Dynamically picks or discovers viral search keywords for YouTube.
     
     Combines:
-    1. Channel Intelligence Scanner (learns from your most viewed & liked videos)
-    2. Real-time Live YouTube Search Trend Scanners (from dynamic seeds)
-    3. Dynamic AI Generation with Gemini (creative viral angles)
-    4. Direct selection from viral_topics.json (320+ pure keywords)
+    1. Real-time Breaking Geopolitical & India Future News Scanner (highest priority)
+    2. Channel Intelligence Scanner (learns from your most viewed & liked videos)
+    3. Real-time Live YouTube Search Trend Scanners (from dynamic seeds)
+    4. Dynamic AI Generation with Gemini (creative viral angles)
+    5. Direct selection from viral_topics.json (460+ pure keywords)
     """
-    # 1. 40% chance: Model after your channel's top performing videos (most views & likes)
+    # 1. 40% priority: Real-time Breaking Indian Geopolitics, Defence Deals & Future Tech News
     if random.random() < 0.40:
+        try:
+            news_query = discover_news_informed_query()
+            if news_query:
+                return news_query
+        except Exception as e:
+            print(f" -> [News Scanner Note]: {e}")
+
+    # 2. 30% chance: Model after your channel's top performing videos (most views & likes)
+    if random.random() < 0.35:
         try:
             channel_topic = pick_channel_informed_topic()
             if channel_topic:

@@ -418,25 +418,31 @@ def generate_dynamic_metadata(content_text: str, original_title: str, is_short: 
             desc_text = data.get("description", original_title)
             debate_q = data.get("debate_question") or "What do you think about this? Drop your thoughts below! 👇"
             
-            # Universal top-trending viral tags & hashtags for Shorts algorithm
+            # Universal top-trending viral tags & hashtags for Shorts algorithm feed push
             core_viral_hashtags = [
                 "#Shorts", "#YouTubeShorts", "#Viral", "#ViralShorts",
-                "#Trending", "#TrendingShorts", "#FYP", "#ForYou"
+                "#Trending", "#TrendingShorts", "#ShortsFeed", "#FYP",
+                "#ForYou", "#Explore", "#ExplorePage", "#ViralVideo",
+                "#BreakingNews", "#LatestNews", "#TrendingNow"
             ]
             
             # Niche-specific viral hashtags based on content
             content_lower = (content_text + " " + original_title).lower()
             niche_hashtags = []
+            if any(k in content_lower for k in ["india", "modi", "bharat", "geopolitics", "defence", "border", "navy", "iaf", "army", "deal"]):
+                niche_hashtags.extend(["#India", "#IndianGeopolitics", "#Bharat", "#DefenceNews", "#IndianArmy", "#Geopolitics", "#WorldAffairs", "#IndiaNews", "#Breaking"])
+            if any(k in content_lower for k in ["crypto", "blockchain", "bitcoin", "btc", "web3", "defi", "cbdc"]):
+                niche_hashtags.extend(["#Crypto", "#Blockchain", "#Web3", "#CryptoNews", "#FutureOfMoney", "#DeFi", "#FinTech"])
             if any(k in content_lower for k in ["bgmi", "pubg", "jonathan", "mortal", "scout", "dynamo", "clutch", "shayari"]):
                 niche_hashtags.extend(["#BGMI", "#BGMIShorts", "#BGMIShayari", "#JonathanGaming", "#Mortal", "#Scout", "#DynamoGaming", "#BGMIClutch", "#PUBGIndia"])
             if any(k in content_lower for k in ["gta", "gta 6", "rockstar", "game", "gaming", "vice city"]):
                 niche_hashtags.extend(["#GTA6", "#GTA6Trailer", "#GTA6Gameplay", "#GamingShorts", "#RockstarGames", "#ViceCity"])
-            if any(k in content_lower for k in ["ai", "artificial intelligence", "robot", "robotics", "tech", "coding"]):
-                niche_hashtags.extend(["#AI", "#ArtificialIntelligence", "#TechShorts", "#FutureTech", "#HumanoidRobot", "#TechNews"])
+            if any(k in content_lower for k in ["ai", "artificial intelligence", "robot", "robotics", "tech", "coding", "neuralink"]):
+                niche_hashtags.extend(["#AI", "#ArtificialIntelligence", "#TechShorts", "#FutureTech", "#HumanoidRobot", "#TechNews", "#Technology"])
             if any(k in content_lower for k in ["isro", "space", "nasa", "black hole", "universe", "moon"]):
-                niche_hashtags.extend(["#Space", "#ISRO", "#NASA", "#BlackHole", "#Astronomy", "#ScienceFacts"])
+                niche_hashtags.extend(["#Space", "#ISRO", "#NASA", "#BlackHole", "#Astronomy", "#ScienceFacts", "#Universe"])
             if is_hindi:
-                niche_hashtags.extend(["#Hindi", "#ShortsHindi", "#HindiFacts", "#DesiTech"])
+                niche_hashtags.extend(["#Hindi", "#ShortsHindi", "#HindiFacts", "#DesiTech", "#HindiNews"])
 
             # Clean and combine all hashtags ensuring no duplicates
             all_raw = core_viral_hashtags + niche_hashtags + [h if h.startswith("#") else f"#{h}" for h in ai_hashtags]
@@ -449,24 +455,33 @@ def generate_dynamic_metadata(content_text: str, original_title: str, is_short: 
                     clean_hashtags.append(formatted)
 
             # Blend in live YouTube trending searches into the tags
-            combined_tags = list(dict.fromkeys(tags + live_trending_searches + ["Shorts", "Viral", "Trending", "YouTube Shorts"]))[:18]
+            combined_tags = list(dict.fromkeys(
+                tags + live_trending_searches + [
+                    "Shorts", "Viral", "Trending", "YouTube Shorts", "Shorts Feed",
+                    "Trending Shorts", "Viral Shorts", "Explore Page", "FYP", "Breaking News"
+                ]
+            ))[:25]
             
-            if is_short and "#shorts" not in title.lower():
-                title = f"{title[:72]} #Shorts"
-            elif not is_short and "| Full Episode" not in title:
-                title = f"{title[:80]} | Full Episode"
+            # High-CTR title with viral trigger tags to force Shorts Feed entry
+            if is_short:
+                title_base = title.replace("#Shorts", "").replace("#shorts", "").strip()
+                if len(title_base) > 60:
+                    title_base = title_base[:57] + "..."
+                final_title = f"{title_base} 😱 #Shorts #Viral"
+            else:
+                final_title = f"{title[:78]} | Full Episode"
 
             full_desc = (
                 f"{desc_text}\n\n"
                 f"🔥 QUESTION FOR YOU:\n"
                 f"{debate_q}\n"
                 f"Drop your answer in the comments below! 👇\n\n"
-                f"🔍 Trending Topics Covered: {', '.join(live_trending_searches[:4])}\n\n"
-                f"🚨 Subscribe to @ByteWaveAI for daily future breakthroughs, AI & gaming updates! 🚀\n\n"
-                f"{' '.join(clean_hashtags[:18])}"
+                f"🔍 Trending Topics Covered: {', '.join(live_trending_searches[:5])}\n\n"
+                f"🚨 Subscribe to @ByteWaveAI for daily breaking geopolitics, AI & future tech! 🚀\n\n"
+                f"{' '.join(clean_hashtags[:28])}"
             )
             return {
-                "title": title[:95],
+                "title": final_title[:95],
                 "tags": combined_tags,
                 "description": full_desc,
             }
