@@ -101,12 +101,13 @@ def pick_viral_topic() -> str:
                 "shocking space discoveries, james webb telescope, black holes, or cosmic mysteries",
                 "universe physics, multiverse theory, dark matter, or time travel paradoxes",
                 "spacex starship mars mission, isro space missions, or deep space exploration",
-                "next-gen game engine engineering, unreal engine 5 graphics tech, or ray tracing physics"
+                "next-gen game engine engineering, unreal engine 5 graphics tech, or ray tracing physics",
+                "future of cryptocurrency and blockchain technology, how governments try to block or regulate crypto, decentralization vs CBDC, and zero knowledge cryptography",
+                "crypto security, quantum computing threats to blockchain, self-custody cold wallets, and AI autonomous cryptocurrency economy"
             ])
             prompt = (
                 f"Give 1 short 2 to 4 word YouTube search keyword to find trending videos about: {angle}.\n"
-                f"Do not write sentences. Do not use names of any individual YouTubers, gamers, or creators.\n"
-                f"Example format: 'bgmi 1v4 clutch' or 'future tech' or 'gta 6 gameplay'.\n"
+                f"Do not write sentences. Do not use individual cryptocurrency shilling names or meme coin hype; focus on broad concepts like 'future of crypto', 'crypto regulation', 'blockchain technology', 'cbdc privacy', 'smart contracts', 'zero knowledge proofs'.\n"
                 f"Output ONLY the short keyword phrase, nothing else."
             )
             resp = client.models.generate_content(

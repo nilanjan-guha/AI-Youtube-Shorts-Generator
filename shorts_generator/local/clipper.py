@@ -284,7 +284,12 @@ def _reframe_vertical(in_path: str, out_path: str, aspect_ratio: str,
     out_w = 1080
     out_h = 1920
 
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    face_cascade = None
+    if hasattr(cv2, "CascadeClassifier") and hasattr(cv2, "data") and hasattr(cv2.data, "haarcascades"):
+        try:
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        except Exception:
+            face_cascade = None
 
     # Build subtitle groups from word-level timestamps
     subtitle_groups = _build_subtitle_groups(clip_words or [], max_words_per_group=5)
@@ -298,25 +303,26 @@ def _reframe_vertical(in_path: str, out_path: str, aspect_ratio: str,
     face_detected_count = 0
     sampled_count = 0
 
-    cur_f = 0
-    while cur_f < total_frames and sampled_count < 20:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, cur_f)
-        ret, s_frame = cap.read()
-        if not ret:
-            break
-        sampled_count += 1
-        gray = cv2.cvtColor(s_frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
-        if len(faces) > 0:
-            face_detected_count += 1
-        cur_f += sample_stride
+    if face_cascade and not face_cascade.empty():
+        cur_f = 0
+        while cur_f < total_frames and sampled_count < 20:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, cur_f)
+            ret, s_frame = cap.read()
+            if not ret:
+                break
+            sampled_count += 1
+            gray = cv2.cvtColor(s_frame, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+            if len(faces) > 0:
+                face_detected_count += 1
+            cur_f += sample_stride
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     # If faces appear in > 40% of samples, it's a person/podcast talking: use face-tracking crop.
     # If < 40%, it's screen share, text, news b-roll, charts, or slides: use smart blurred letterbox
     # so NO text or visual information is cut!
-    use_face_crop = (face_detected_count / max(1, sampled_count)) >= 0.40
+    use_face_crop = (face_cascade is not None and not face_cascade.empty()) and ((face_detected_count / max(1, sampled_count)) >= 0.40)
 
     silent_path = out_path + ".silent.mp4"
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")

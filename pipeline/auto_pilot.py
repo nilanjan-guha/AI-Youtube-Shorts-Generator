@@ -344,7 +344,7 @@ def fetch_trending_search_queries(seed_text: str, max_results: int = 8) -> List[
     return suggestions
 
 
-def generate_dynamic_metadata(content_text: str, original_title: str, is_short: bool = True) -> Dict:
+def generate_dynamic_metadata(content_text: str, original_title: str, is_short: bool = True, clip_index: int = 1) -> Dict:
     """Dynamically generate high-CTR viral title, tags, and description using Gemini AI,
     real-time YouTube Search Auto-Complete Trends, and High-Traffic Question Hooks.
     
@@ -373,6 +373,10 @@ def generate_dynamic_metadata(content_text: str, original_title: str, is_short: 
             prompt = (
                 f"You are a top YouTube Shorts SEO growth strategist.\n"
                 f"Goal: Generate a high-CTR, algorithm-favored viral title and SEO metadata.\n\n"
+                f"CRITICAL REQUIREMENT:\n"
+                f"- This is Clip #{clip_index} from this video session.\n"
+                f"- You MUST make this title completely unique and specifically tailored to this clip's specific dialogue/hook.\n"
+                f"- NEVER repeat generic titles like 'Are These Mind Blowing Discoveries Real?'.\n\n"
                 f"Video Context / Hook: {content_text[:600]}\n"
                 f"Original Title: {original_title}\n"
                 f"Is Short format: {is_short}\n"
@@ -593,13 +597,15 @@ def run_pipeline(
                 continue
 
             hook = short.get("hook_sentence") or short.get("title") or chosen_video["title"]
-            base_title = short.get("title") or hook
+            clip_label = short.get("title") or f"Part {idx}"
+            base_title = f"{clip_label} - {hook}" if clip_label != hook else hook
             
             # Generate 100% dynamic viral title, tags, hashtags tailored to this exact short's content
             short_meta = generate_dynamic_metadata(
-                content_text=f"{hook} {base_title} {chosen_video['title']}",
+                content_text=f"Clip #{idx}: {hook}. Context: {base_title}. Source: {chosen_video['title']}",
                 original_title=base_title,
                 is_short=True,
+                clip_index=idx,
             )
 
             # Generate individual thumbnail for this short
